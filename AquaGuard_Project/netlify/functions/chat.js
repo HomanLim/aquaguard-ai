@@ -1,62 +1,231 @@
-// 这是您的云端后端，专门负责和 DeepSeek 沟通，保护密钥安全
-exports.handler = async function(event, context) {
-    // 1. 设置跨域头，防止浏览器拦截请求
+exports.handler = async (event) => {
+
     const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
     };
 
-    // 2. 处理预检请求 (OPTIONS)
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
-    }
-
-    // 3. 只允许 POST 请求
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, headers, body: 'Method Not Allowed' };
-    }
-
-    try {
-        const { prompt } = JSON.parse(event.body);
-        const apiKey = process.env.DEEPSEEK_API_KEY; 
-
-        if (!apiKey) {
-            return { statusCode: 500, headers, body: JSON.stringify({ error: '环境变量缺失' }) };
-        }
-
-        // 优化后的逻辑：增加 System 指令，确保 AI 分析所有输入点
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [
-                    { 
-                        role: "system", 
-                        content: "你是一个专业的环境治理专家。请仔细阅读用户提供的所有输入信息（包括地理位置、环境描述和图片分析结果），不要遗漏任何细节。请确保对输入的所有部分进行评估，并给出结构化的治理建议。" 
-                    },
-                    { role: "user", content: prompt }
-                ],
-                temperature: 0.3
-            })
-        });
-
-        if (!response.ok) {
-            return { statusCode: response.status, headers, body: JSON.stringify({ error: 'DeepSeek API 报错' }) };
-        }
-
-        const data = await response.json();
+    // CORS
+    if (event.httpMethod === "OPTIONS") {
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ reply: data.choices[0].message.content })
+            body: ""
         };
-        
-    } catch (error) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
     }
+
+    if (event.httpMethod !== "POST") {
+        return {
+            statusCode: 405,
+            headers,
+            body: JSON.stringify({
+                error: "Method Not Allowed"
+            })
+        };
+    }
+
+    try {
+
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+
+        if (!apiKey) {
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({
+                    error: "DEEPSEEK_API_KEY not found."
+                })
+            };
+        }
+
+        const body = JSON.parse(event.body);
+
+        const prompt = body.prompt || "";
+
+        if (!prompt.trim()) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({
+                    error: "Prompt is empty."
+                })
+            };
+        }
+
+        const systemPrompt = `
+You are AquaGuard AI.
+
+You are an interdisciplinary expert in:
+
+- Groundwater Hydrology
+- Water Quality Engineering
+- Landfill Leachate Migration
+- Environmental Toxicology
+- Environmental Engineering
+- Public Health
+- Risk Assessment
+
+Your task is to analyze community groundwater contamination.
+
+Carefully consider ALL information supplied by the user.
+
+This includes:
+
+• Water source
+
+• Weather
+
+• Water color
+
+• RGB image feature
+
+• Turbidity
+
+• Odor
+
+• Natural language description
+
+• Reported symptoms
+
+Do not ignore any field.
+
+Reason scientifically.
+
+Explain WHY.
+
+Identify possible pollutants.
+
+Assess uncertainty.
+
+Finally produce ONLY valid JSON.
+
+Never output markdown.
+
+Never output explanations outside JSON.
+`;
+
+        const controller = new AbortController();
+
+        const timeout = setTimeout(() => {
+            controller.abort();
+        }, 60000);
+
+        const response = await fetch(
+            "https://api.deepseek.com/chat/completions",
+            {
+                method: "POST",
+                signal: controller.signal,
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+
+                    model: "deepseek-reasoner",
+
+                    messages: [
+
+                        {
+                            role: "system",
+                            content: systemPrompt
+                        },
+
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+
+                    ],
+
+                    temperature: 0.5,
+
+                    max_tokens: 1500,
+
+                    top_p: 0.95,
+
+                    frequency_penalty: 0,
+
+                    presence_penalty: 0
+
+                })
+            }
+        );
+
+        clearTimeout(timeout);
+
+        const result = await response.json();
+
+        if (!response.ok) {
+
+            return {
+
+                statusCode: response.status,
+
+                headers,
+
+                body: JSON.stringify({
+
+                    error: result
+
+                })
+
+            };
+
+        }
+
+        const reply = result?.choices?.[0]?.message?.content;
+
+        if (!reply) {
+
+            return {
+
+                statusCode: 500,
+
+                headers,
+
+                body: JSON.stringify({
+
+                    error: "No response from DeepSeek."
+
+                })
+
+            };
+
+        }
+
+        return {
+
+            statusCode: 200,
+
+            headers,
+
+            body: JSON.stringify({
+
+                reply
+
+            })
+
+        };
+
+    }
+
+    catch (err) {
+
+        return {
+
+            statusCode: 500,
+
+            headers,
+
+            body: JSON.stringify({
+
+                error: err.message
+
+            })
+
+        };
+
+    }
+
 };
