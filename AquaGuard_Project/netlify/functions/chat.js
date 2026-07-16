@@ -19,20 +19,13 @@ exports.handler = async function(event, context) {
 
     try {
         const { prompt } = JSON.parse(event.body);
-        
-        // 这里会自动读取您在 Netlify 后台填写的 DEEPSEEK_API_KEY
         const apiKey = process.env.DEEPSEEK_API_KEY; 
 
         if (!apiKey) {
-            console.error("API Key 未配置!");
-            return { 
-                statusCode: 500, 
-                headers, 
-                body: JSON.stringify({ error: '环境变量 DEEPSEEK_API_KEY 缺失，请在 Netlify 后台添加并 Trigger Deploy' }) 
-            };
+            return { statusCode: 500, headers, body: JSON.stringify({ error: '环境变量缺失' }) };
         }
 
-        // 干净的、没有任何多余括号的真实 DeepSeek API 网址
+        // 优化后的逻辑：增加 System 指令，确保 AI 分析所有输入点
         const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
@@ -40,24 +33,23 @@ exports.handler = async function(event, context) {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: "deepseek-chat", // 使用 DeepSeek 的对话模型
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.2 // 稍微调低温度，让 AI 评估更严谨客观
+                model: "deepseek-chat",
+                messages: [
+                    { 
+                        role: "system", 
+                        content: "你是一个专业的环境治理专家。请仔细阅读用户提供的所有输入信息（包括地理位置、环境描述和图片分析结果），不要遗漏任何细节。请确保对输入的所有部分进行评估，并给出结构化的治理建议。" 
+                    },
+                    { role: "user", content: prompt }
+                ],
+                temperature: 0.3
             })
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            console.error("DeepSeek 官方返回报错:", errText);
-            return {
-                statusCode: response.status,
-                headers,
-                body: JSON.stringify({ error: `DeepSeek API 报错: ${errText}` })
-            };
+            return { statusCode: response.status, headers, body: JSON.stringify({ error: 'DeepSeek API 报错' }) };
         }
+
         const data = await response.json();
-        
-        // 将 DeepSeek 生成的结果返回给您的网页
         return {
             statusCode: 200,
             headers,
@@ -65,11 +57,6 @@ exports.handler = async function(event, context) {
         };
         
     } catch (error) {
-        console.error("后端执行错误:", error);
-        return { 
-            statusCode: 500, 
-            headers,
-            body: JSON.stringify({ error: `代码执行崩溃: ${error.message}` }) 
-        };
+        return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
     }
 };
