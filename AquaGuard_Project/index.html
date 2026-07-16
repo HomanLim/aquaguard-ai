@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaGuard AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+        
+        body { 
+            font-family: 'Inter', 'Noto Sans SC', sans-serif; 
+            scroll-behavior: smooth; 
+            background-color: #f8fafc; 
+        }
+        
+        /* 针对不同语言的字体微调 */
+        html[lang="en"] body, html[lang="id"] body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .text-gradient { background: linear-gradient(135deg, #2563eb, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .bg-hero { background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(30,58,138,0.9) 100%), url('https://images.unsplash.com/photo-1541888081682-15f20f666f77?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80') center/cover; }
+        
+        /* Timeline CSS */
+        .timeline-container { position: relative; max-width: 800px; margin: 0 auto; padding: 40px 0; }
+        .timeline-container::after { content: ''; position: absolute; width: 4px; background-color: #e2e8f0; top: 0; bottom: 0; left: 50%; margin-left: -2px; border-radius: 2px; }
+        .timeline-item { padding: 10px 40px; position: relative; background-color: inherit; width: 50%; }
+        .timeline-item::after { content: ''; position: absolute; width: 20px; height: 20px; right: -10px; background-color: white; border: 4px solid #2563eb; top: 24px; border-radius: 50%; z-index: 1; }
+        .left { left: 0; } 
+        .right { left: 50%; } 
+        .right::after { left: -10px; }
+        .timeline-content { padding: 24px; background-color: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .timeline-content:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border-color: #bfdbfe; }
+        
+        @media screen and (max-width: 768px) {
+            .timeline-container::after { left: 31px; }
+            .timeline-item { width: 100%; padding-left: 70px; padding-right: 25px; }
+            .timeline-item::after { left: 21px; }
+            .left::after, .right::after { left: 21px; }
+            .right { left: 0%; }
+        }
+
+        .team-card { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .team-card:hover { transform: translateY(-8px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border-color: rgba(59, 130, 246, 0.5); }
+        .team-card:hover img { transform: scale(1.05); }
+        .img-container { transition: transform 0.4s ease; overflow: hidden; }
+        
+        /* Smooth Scroll */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+    <!-- 导航栏 -->
+    <nav class="fixed w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="window.scrollTo(0,0)">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg"><i class="fa-solid fa-droplet text-xl"></i></div>
+                    <div>
+                        <span class="font-bold text-xl tracking-tight text-slate-900 block leading-none">AquaGuard AI</span>
+                        <span class="text-[11px] font-medium text-emerald-600 tracking-wider" id="nav-team">BY TEAM 清 IT UP</span>
+                    </div>
+                </div>
+                <div class="hidden lg:flex space-x-8 text-sm font-semibold text-slate-600">
+                    <a href="#challenge" class="hover:text-blue-600 transition" id="nav-1">面临挑战</a>
+                    <a href="#solution" class="hover:text-blue-600 transition" id="nav-2">解决方案</a>
+                    <a href="#governance" class="hover:text-blue-600 transition" id="nav-3">治理机制</a>
+                    <a href="#toc" class="hover:text-blue-600 transition" id="nav-4">变革理论</a>
+                    <a href="#team" class="hover:text-blue-600 transition" id="nav-5">团队介绍</a>
+                </div>
+                <div class="hidden md:flex items-center space-x-4">
+                    <!-- 语言切换 -->
+                    <div class="flex bg-slate-100 rounded-lg p-1 text-xs font-semibold border border-slate-200">
+                        <button onclick="changeSiteLang('id')" id="btn-site-id" class="px-3 py-1.5 rounded text-slate-600 hover:bg-white transition">ID</button>
+                        <button onclick="changeSiteLang('en')" id="btn-site-en" class="px-3 py-1.5 rounded text-slate-600 hover:bg-white transition">EN</button>
+                        <button onclick="changeSiteLang('zh')" id="btn-site-zh" class="px-3 py-1.5 rounded bg-blue-600 text-white transition shadow-sm">中</button>
+                    </div>
+                    <a href="aquaguard_app.html" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-500/30 transition">
+                        <span id="nav-btn">体验系统原型</span> <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 沉浸式 Hero Section -->
+    <section class="bg-hero min-h-screen flex items-center relative pt-20">
+        <div class="absolute inset-0 bg-slate-900/60 mix-blend-multiply"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center md:text-left flex flex-col md:flex-row items-center mt-10">
+            <div class="md:w-3/5 md:pr-12">
+                <div class="inline-block bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 px-4 py-1.5 rounded-full text-xs font-bold tracking-widest mb-6 uppercase" id="hero-tag">
+                    From Technology to Governance
+                </div>
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight mb-6" id="hero-title">
+                    将本地社区观察，<br>转化为<span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">协调一致的公共行动</span>
+                </h1>
+                <p class="text-lg text-slate-300 mb-8 font-light max-w-2xl leading-relaxed" id="hero-sub">
+                    在 Bantargebang 垃圾填埋场周边，地下水污染威胁着无数家庭的健康。AquaGuard AI 不仅是一个监测工具，它是一个连接公民科学、人工智能与公共机构的创新水治理机制。
+                </p>
+                <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start">
+                    <a href="aquaguard_app.html" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-full text-base font-bold shadow-xl shadow-blue-600/30 transition flex items-center justify-center">
+                        <i class="fa-solid fa-mobile-screen-button mr-2"></i> <span id="hero-btn1">启动 AI 评估原型</span>
+                    </a>
+                    <a href="#challenge" class="bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white px-8 py-4 rounded-full text-base font-bold transition flex items-center justify-center">
+                        <span id="hero-btn2">了解更多</span>
+                    </a>
+                </div>
+            </div>
+            <div class="md:w-2/5 mt-16 md:mt-0 hidden md:block">
+                <div class="relative mx-auto w-[280px] h-[580px] bg-white rounded-[40px] shadow-2xl border-[10px] border-slate-800 overflow-hidden transform rotate-[-2deg] hover:rotate-0 transition-transform duration-500">
+                    <img src="https://images.unsplash.com/photo-1555949963-aa79dcee981c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="w-full h-48 object-cover opacity-80" alt="App interface">
+                    <div class="p-5 bg-slate-50 h-full flex flex-col items-center">
+                        <div class="h-1.5 w-16 bg-slate-300 rounded-full mb-6"></div>
+                        <h3 class="font-bold text-slate-800 mb-4 text-base text-center">AquaGuard AI</h3>
+                        <div class="w-full h-32 bg-blue-50 border border-blue-100 rounded-2xl mb-5 flex flex-col items-center justify-center text-blue-500 shadow-inner">
+                            <i class="fa-solid fa-camera text-3xl mb-2"></i>
+                            <span class="text-xs font-semibold" id="mock-scan">水质影像扫描</span>
+                        </div>
+                        <div class="w-full space-y-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-emerald-100 flex justify-center items-center text-emerald-500"><i class="fa-solid fa-check"></i></div>
+                                <div class="flex-1 h-2 bg-slate-200 rounded-full"></div>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-orange-100 flex justify-center items-center text-orange-500"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                                <div class="flex-1 h-2 bg-slate-200 rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 1. 面临挑战 (Challenges) -->
+    <section id="challenge" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-3xl font-black text-slate-900 mb-4" id="chal-title">严峻的本地挑战</h2>
+                <div class="w-16 h-1.5 bg-blue-600 rounded-full mx-auto mb-6"></div>
+                <p class="text-slate-600 text-lg" id="chal-sub">在印度尼西亚最大的垃圾填埋场 Bantargebang 周边，水资源安全面临着前所未有的威胁，传统监测手段难以覆盖所有受影响的家庭。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Card 1 -->
+                <div class="bg-slate-50 rounded-2xl p-8 border border-slate-100 hover:shadow-lg transition duration-300">
+                    <div class="w-14 h-14 bg-red-100 text-red-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fa-solid fa-biohazard"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3" id="chal-1-title">渗滤液污染</h3>
+                    <p class="text-slate-600 leading-relaxed" id="chal-1-desc">未经充分处理的垃圾渗滤液渗透入地下水系统，导致周边社区井水出现发黄、异味及重金属超标现象。</p>
+                </div>
+                <!-- Card 2 -->
+                <div class="bg-slate-50 rounded-2xl p-8 border border-slate-100 hover:shadow-lg transition duration-300">
+                    <div class="w-14 h-14 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fa-solid fa-house-chimney-crack"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3" id="chal-2-title">公共健康威胁</h3>
+                    <p class="text-slate-600 leading-relaxed" id="chal-2-desc">由于缺乏替代水源，数以千计的家庭长期使用受污染的水，面临肠道疾病和长期慢病的高发风险。</p>
+                </div>
+                <!-- Card 3 -->
+                <div class="bg-slate-50 rounded-2xl p-8 border border-slate-100 hover:shadow-lg transition duration-300">
+                    <div class="w-14 h-14 bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fa-solid fa-eye-low-vision"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3" id="chal-3-title">监测盲区</h3>
+                    <p class="text-slate-600 leading-relaxed" id="chal-3-desc">官方实验室检测成本高昂、周期漫长，导致政府部门难以获得高频次、细粒度的实时污染分布数据。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. 解决方案 (Solutions) -->
+    <section id="solution" class="py-24 bg-slate-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col lg:flex-row items-center gap-16">
+                <div class="lg:w-1/2">
+                    <h2 class="text-3xl font-black mb-4" id="sol-title">公民科学结合 AI 赋能</h2>
+                    <div class="w-16 h-1.5 bg-blue-500 rounded-full mb-6"></div>
+                    <p class="text-slate-300 text-lg mb-8 leading-relaxed" id="sol-sub">
+                        AquaGuard AI 将智能手机转化为分布式的微型水质监测站。通过前沿的 AI 视觉分析模型，我们赋能当地居民自主检测水质，打破数据收集的壁垒。
+                    </p>
+                    <ul class="space-y-6">
+                        <li class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600/30 border border-blue-500 flex items-center justify-center text-blue-400 mt-1">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-bold" id="sol-pt1-title">简单拍摄，一键上传</h4>
+                                <p class="text-slate-400 text-sm mt-1" id="sol-pt1-desc">居民仅需使用手机对准试纸或水样拍照，操作门槛低，无需复杂培训即可参与。</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500 flex items-center justify-center text-emerald-400 mt-1">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-bold" id="sol-pt2-title">云端 AI 快速分析</h4>
+                                <p class="text-slate-400 text-sm mt-1" id="sol-pt2-desc">系统利用计算机视觉技术分析水样颜色与浊度，即刻返回初步的风险评估结果。</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="lg:w-1/2 relative">
+                    <div class="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                    <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" onerror="this.src='https://images.unsplash.com/photo-1527219525722-f9767a7f2884?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'" alt="Tech Solution" class="relative w-full aspect-[4/3] object-cover bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 z-10">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. 治理机制 (Governance) -->
+    <section id="governance" class="py-24 bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-black text-slate-900 mb-4" id="gov-title">新型协作治理网络</h2>
+            <div class="w-16 h-1.5 bg-emerald-500 rounded-full mx-auto mb-12"></div>
+            
+            <div class="flex flex-col md:flex-row justify-center items-center md:items-stretch gap-6 mt-8">
+                <!-- Node 1 -->
+                <div class="bg-blue-50 rounded-xl p-6 border border-blue-100 w-full md:w-1/3 text-center z-10">
+                    <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg shadow-blue-200">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2" id="gov-1">当地居民 (数据源)</h3>
+                    <p class="text-sm text-slate-600" id="gov-1-desc">通过日常拍摄建立众包数据库，提高社区对水安全的意识与参与度。</p>
+                </div>
+                
+                <!-- Arrow -->
+                <div class="hidden md:flex flex-col justify-center text-slate-300 text-2xl">
+                    <i class="fa-solid fa-arrow-right-long"></i>
+                </div>
+
+                <!-- Node 2 -->
+                <div class="bg-slate-50 rounded-xl p-6 border border-slate-200 w-full md:w-1/3 text-center z-10 shadow-sm">
+                    <div class="w-16 h-16 bg-slate-800 text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg">
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2" id="gov-2">AquaGuard 平台</h3>
+                    <p class="text-sm text-slate-600" id="gov-2-desc">汇总、清洗并分析海量图像数据，生成区域水质热力图与预警报告。</p>
+                </div>
+
+                <!-- Arrow -->
+                <div class="hidden md:flex flex-col justify-center text-emerald-300 text-2xl">
+                    <i class="fa-solid fa-arrow-right-long"></i>
+                </div>
+
+                <!-- Node 3 -->
+                <div class="bg-emerald-50 rounded-xl p-6 border border-emerald-100 w-full md:w-1/3 text-center z-10">
+                    <div class="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-lg shadow-emerald-200">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800 text-lg mb-2" id="gov-3">政府与机构 (决策)</h3>
+                    <p class="text-sm text-slate-600" id="gov-3-desc">依据实时热力图精准分配干净水源，制定有效的填埋场修复与干预政策。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. 变革理论 (Theory of Change) -->
+    <section id="toc" class="py-24 bg-slate-50 border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-black text-slate-900 mb-4" id="toc-title">变革理论 (ToC)</h2>
+                <div class="w-16 h-1.5 bg-blue-600 rounded-full mx-auto mb-6"></div>
+                <p class="text-slate-600 text-lg max-w-2xl mx-auto" id="toc-sub">我们如何通过技术介入，最终实现环境与公共健康的长期改善。</p>
+            </div>
+            
+            <div class="timeline-container">
+                <!-- Timeline 1 -->
+                <div class="timeline-item left">
+                    <div class="timeline-content">
+                        <span class="text-sm font-bold text-blue-600 mb-2 block uppercase tracking-wider" id="toc-step1">第一阶段 / 投入</span>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2" id="toc-1-title">社区赋能与工具部署</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed" id="toc-1-desc">在目标社区推广 AquaGuard 应用，分发简易检测试剂，培训基层志愿者掌握标准拍摄与上传流程。</p>
+                    </div>
+                </div>
+                <!-- Timeline 2 -->
+                <div class="timeline-item right">
+                    <div class="timeline-content">
+                        <span class="text-sm font-bold text-blue-600 mb-2 block uppercase tracking-wider" id="toc-step2">第二阶段 / 产出</span>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2" id="toc-2-title">数据洞察与风险可视化</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed" id="toc-2-desc">AI 引擎持续处理上传的图像，实时生成水质风险地图，打破信息孤岛，让隐性污染透明化。</p>
+                    </div>
+                </div>
+                <!-- Timeline 3 -->
+                <div class="timeline-item left">
+                    <div class="timeline-content">
+                        <span class="text-sm font-bold text-emerald-600 mb-2 block uppercase tracking-wider" id="toc-step3">第三阶段 / 结果</span>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2" id="toc-3-title">政策响应与资源调配</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed" id="toc-3-desc">环保与卫生部门基于数据热力图，针对高危片区优先部署净水设备及提供医疗援助。</p>
+                    </div>
+                </div>
+                <!-- Timeline 4 -->
+                <div class="timeline-item right">
+                    <div class="timeline-content">
+                        <span class="text-sm font-bold text-emerald-600 mb-2 block uppercase tracking-wider" id="toc-step4">第四阶段 / 影响</span>
+                        <h3 class="text-xl font-bold text-slate-800 mb-2" id="toc-4-title">长期可持续发展</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed" id="toc-4-desc">降低水相关疾病发病率，推动填埋场防渗工程升级，构建具有弹性的社区水资源治理体系。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 可持续发展影响 (Sustainability & SDGs) -->
+    <section id="impact" class="py-24 bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col lg:flex-row items-center gap-12">
+                <div class="lg:w-1/2">
+                    <h2 class="text-3xl font-black text-slate-900 mb-4 tracking-tight" id="sdg-title">可行性与可持续发展影响</h2>
+                    <div class="w-16 h-1.5 bg-emerald-500 rounded-full mb-6"></div>
+                    <p class="text-slate-600 text-lg leading-relaxed mb-6" id="sdg-sub">
+                        AquaGuard AI 的可行性在于它无需在每户家中安装昂贵的物理传感器，而是巧妙地将手机应用、云端 AI 与公民参与相结合。直接贡献于联合国可持续发展目标（SDGs）。
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg shadow-sm border border-slate-100">
+                            <div class="w-10 h-10 bg-green-500 rounded flex items-center justify-center text-white font-bold text-lg">3</div>
+                            <span class="font-bold text-sm text-slate-700" id="sdg-3">良好健康与福祉</span>
+                        </div>
+                        <div class="flex items-center space-x-3 bg-slate-50 p-3 rounded-lg shadow-sm border border-slate-100">
+                            <div class="w-10 h-10 bg-cyan-500 rounded flex items-center justify-center text-white font-bold text-lg">6</div>
+                            <span class="font-bold text-sm text-slate-700" id="sdg-6">清洁饮水与卫生</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:w-1/2 w-full">
+                    <div class="space-y-4">
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 border-l-4 border-l-blue-500 hover:shadow-md transition">
+                            <h4 class="font-bold text-slate-800 text-sm mb-1 uppercase tracking-wider" id="fea-1">财务可行性</h4>
+                            <p class="text-sm text-slate-600" id="fea-1-sub">通过广泛的社区参与，大幅降低了常规实验室拉网式监测的成本，帮助环保部门精准投放资金。</p>
+                        </div>
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 border-l-4 border-l-purple-500 hover:shadow-md transition">
+                            <h4 class="font-bold text-slate-800 text-sm mb-1 uppercase tracking-wider" id="fea-2">机构建设</h4>
+                            <p class="text-sm text-slate-600" id="fea-2-sub">打破信息孤岛，直接为地方政府、环保部门及卫生机构提供来自一线的结构化观测数据支持。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 团队介绍 (Team) -->
+    <section id="team" class="py-24 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-black text-slate-900 mb-4" id="team-title">认识我们的团队</h2>
+                <div class="w-16 h-1.5 bg-blue-600 rounded-full mx-auto mb-6"></div>
+                <p class="text-slate-600 text-lg mb-2" id="team-sub">清 IT UP 团队致力于利用技术推动社会与环境的积极改变。</p>
+                <p class="text-sm text-slate-400 mt-2" id="team-order-note">* 排名不分先后</p>
+            </div>
+            
+            <!-- Team Grid: strict order Sixu, Danisha, Nonny, Xinyue, Xiaoqin, Shuo. 3x2 layout -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 max-w-5xl mx-auto">
+                <!-- 1. Sixu -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-blue-50 overflow-hidden bg-slate-100">
+                        <img src="./sixu.jpg" alt="Sixu" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-blue-600 font-bold text-4xl bg-blue-100\'>S</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Sixu</h3>
+                </div>
+                <!-- 2. Danisha -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-emerald-50 overflow-hidden bg-slate-100">
+                        <img src="./danisha.jpg" alt="Danisha" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-emerald-600 font-bold text-4xl bg-emerald-100\'>D</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Danisha</h3>
+                </div>
+                <!-- 3. Nonny -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-purple-50 overflow-hidden bg-slate-100">
+                        <img src="./nonny.jpg" alt="Nonny" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-purple-600 font-bold text-4xl bg-purple-100\'>N</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Nonny</h3>
+                </div>
+                <!-- 4. Xinyue -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-orange-50 overflow-hidden bg-slate-100">
+                        <img src="./xinyue.jpg" alt="Xinyue" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-orange-600 font-bold text-4xl bg-orange-100\'>X</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Xinyue</h3>
+                </div>
+                <!-- 5. Xiaoqin -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-rose-50 overflow-hidden bg-slate-100">
+                        <img src="./xiaoqin.jpg" alt="Xiaoqin" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-rose-600 font-bold text-4xl bg-rose-100\'>X</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Xiaoqin</h3>
+                </div>
+                <!-- 6. Shuo -->
+                <div class="team-card bg-white rounded-2xl p-8 text-center border border-slate-100 cursor-default">
+                    <div class="w-32 h-32 mx-auto rounded-full mb-6 flex items-center justify-center img-container border-4 border-cyan-50 overflow-hidden bg-slate-100">
+                        <img src="./shuo.jpg" alt="Shuo" class="w-full h-full object-cover" onerror="this.outerHTML='<div class=\'w-full h-full flex items-center justify-center text-cyan-600 font-bold text-4xl bg-cyan-100\'>S</div>'">
+                    </div>
+                    <h3 class="font-bold text-xl text-slate-800">Shuo</h3>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-slate-950 text-slate-500 py-12 text-center text-sm border-t border-slate-900">
+        <div class="flex justify-center space-x-6 mb-6 text-xl">
+            <a href="#" class="hover:text-white transition"><i class="fa-brands fa-github"></i></a>
+            <a href="#" class="hover:text-white transition"><i class="fa-solid fa-envelope"></i></a>
+        </div>
+        <p>&copy; 2026 AquaGuard AI by Team "清 it up". All rights reserved.</p>
+    </footer>
+
+    <script>
+        const siteDict = {
+            'zh': {
+                'nav-team': 'BY TEAM 清 IT UP', 'nav-1': '面临挑战', 'nav-2': '解决方案', 'nav-3': '治理机制', 'nav-4': '变革理论', 'nav-5': '团队介绍', 'nav-btn': '体验系统原型',
+                
+                'hero-tag': '从技术赋能到公共治理',
+                'hero-title': '将本地社区观察，<br>转化为<span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">协调一致的公共行动</span>',
+                'hero-sub': '在 Bantargebang 垃圾填埋场周边，地下水污染威胁着无数家庭的健康。AquaGuard AI 不仅是一个监测工具，它是一个连接公民科学、人工智能与公共机构的创新水治理机制。',
+                'hero-btn1': '启动 AI 评估原型', 'hero-btn2': '了解更多',
+                'mock-scan': '水质影像扫描',
+
+                'chal-title': '严峻的本地挑战',
+                'chal-sub': '在印度尼西亚最大的垃圾填埋场 Bantargebang 周边，水资源安全面临着前所未有的威胁，传统监测手段难以覆盖所有受影响的家庭。',
+                'chal-1-title': '渗滤液污染', 'chal-1-desc': '未经充分处理的垃圾渗滤液渗透入地下水系统，导致周边社区井水出现发黄、异味及重金属超标现象。',
+                'chal-2-title': '公共健康威胁', 'chal-2-desc': '由于缺乏替代水源，数以千计的家庭长期使用受污染的水，面临肠道疾病和长期慢病的高发风险。',
+                'chal-3-title': '监测盲区', 'chal-3-desc': '官方实验室检测成本高昂、周期漫长，导致政府部门难以获得高频次、细粒度的实时污染分布数据。',
+
+                'sol-title': '公民科学结合 AI 赋能',
+                'sol-sub': 'AquaGuard AI 将智能手机转化为分布式的微型水质监测站。通过前沿的 AI 视觉分析模型，我们赋能当地居民自主检测水质，打破数据收集的壁垒。',
+                'sol-pt1-title': '简单拍摄，一键上传', 'sol-pt1-desc': '居民仅需使用手机对准试纸或水样拍照，操作门槛低，无需复杂培训即可参与。',
+                'sol-pt2-title': '云端 AI 快速分析', 'sol-pt2-desc': '系统利用计算机视觉技术分析水样颜色与浊度，即刻返回初步的风险评估结果。',
+
+                'gov-title': '新型协作治理网络',
+                'gov-1': '当地居民 (数据源)', 'gov-1-desc': '通过日常拍摄建立众包数据库，提高社区对水安全的意识与参与度。',
+                'gov-2': 'AquaGuard 平台', 'gov-2-desc': '汇总、清洗并分析海量图像数据，生成区域水质热力图与预警报告。',
+                'gov-3': '政府与机构 (决策)', 'gov-3-desc': '依据实时热力图精准分配干净水源，制定有效的填埋场修复与干预政策。',
+
+                'toc-title': '变革理论 (ToC)',
+                'toc-sub': '我们如何通过技术介入，最终实现环境与公共健康的长期改善。',
+                'toc-step1': '第一阶段 / 投入', 'toc-1-title': '社区赋能与工具部署', 'toc-1-desc': '在目标社区推广 AquaGuard 应用，分发简易检测试剂，培训基层志愿者掌握标准拍摄与上传流程。',
+                'toc-step2': '第二阶段 / 产出', 'toc-2-title': '数据洞察与风险可视化', 'toc-2-desc': 'AI 引擎持续处理上传的图像，实时生成水质风险地图，打破信息孤岛，让隐性污染透明化。',
+                'toc-step3': '第三阶段 / 结果', 'toc-3-title': '政策响应与资源调配', 'toc-3-desc': '环保与卫生部门基于数据热力图，针对高危片区优先部署净水设备及提供医疗援助。',
+                'toc-step4': '第四阶段 / 影响', 'toc-4-title': '长期可持续发展', 'toc-4-desc': '降低水相关疾病发病率，推动填埋场防渗工程升级，构建具有弹性的社区水资源治理体系。',
+
+                'sdg-title': '可行性与可持续发展影响', 'sdg-sub': 'AquaGuard AI 的可行性在于它无需在每户家中安装昂贵的物理传感器，而是巧妙地将手机应用、云端 AI 与公民参与相结合。',
+                'sdg-3': '良好健康与福祉', 'sdg-6': '清洁饮水与卫生',
+                'fea-1': '财务可行性', 'fea-1-sub': '通过广泛的社区参与，大幅降低了常规实验室拉网式监测的成本，帮助环保部门精准投放资金。',
+                'fea-2': '数据与机构建设', 'fea-2-sub': '打破信息孤岛，直接为地方政府及卫生机构提供来自一线的结构化观测数据支持。',
+
+                'team-title': '认识我们的团队', 'team-sub': '清 IT UP 团队致力于利用技术推动社会与环境的积极改变。',
+                'team-order-note': '* 排名不分先后'
+            },
+            'en': {
+                'nav-team': 'BY TEAM 清 IT UP', 'nav-1': 'Challenges', 'nav-2': 'Solutions', 'nav-3': 'Governance', 'nav-4': 'Theory of Change', 'nav-5': 'Team', 'nav-btn': 'Try AI Prototype',
+                
+                'hero-tag': 'From Technology to Governance',
+                'hero-title': 'Transforming local observations<br>into <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">coordinated public action</span>',
+                'hero-sub': 'Around the Bantargebang landfill, groundwater pollution threatens countless families. AquaGuard AI is not just a monitoring tool; it is an innovative water governance mechanism connecting citizen science, AI, and public institutions.',
+                'hero-btn1': 'Launch AI Prototype', 'hero-btn2': 'Learn More',
+                'mock-scan': 'Water Scan',
+
+                'chal-title': 'Severe Local Challenges',
+                'chal-sub': 'Around Bantargebang, Indonesia\'s largest landfill, water security faces unprecedented threats, and traditional monitoring fails to cover all affected households.',
+                'chal-1-title': 'Leachate Pollution', 'chal-1-desc': 'Inadequately treated landfill leachate penetrates the groundwater, causing well water to become yellow, odorous, and high in heavy metals.',
+                'chal-2-title': 'Public Health Threat', 'chal-2-desc': 'Lacking alternative water sources, thousands of families consume contaminated water, facing high risks of intestinal and chronic diseases.',
+                'chal-3-title': 'Monitoring Blind Spots', 'chal-3-desc': 'Costly and slow official lab tests prevent government agencies from obtaining high-frequency, real-time pollution distribution data.',
+
+                'sol-title': 'Citizen Science + AI Empowerment',
+                'sol-sub': 'AquaGuard AI turns smartphones into distributed micro water monitoring stations. Through cutting-edge AI vision models, we empower residents to test water quality autonomously.',
+                'sol-pt1-title': 'Snap & Upload', 'sol-pt1-desc': 'Residents simply use their phones to photograph test strips or water samples. It requires no complex training to participate.',
+                'sol-pt2-title': 'Cloud AI Analysis', 'sol-pt2-desc': 'The system uses computer vision to analyze water color and turbidity, returning instant preliminary risk assessments.',
+
+                'gov-title': 'Collaborative Governance Network',
+                'gov-1': 'Local Residents (Data Source)', 'gov-1-desc': 'Building a crowdsourced database through daily photo uploads, raising community awareness on water safety.',
+                'gov-2': 'AquaGuard Platform', 'gov-2-desc': 'Aggregating, cleaning, and analyzing massive image data to generate regional water quality heatmaps.',
+                'gov-3': 'Government (Decision Making)', 'gov-3-desc': 'Allocating clean water resources precisely and formulating effective landfill remediation policies based on real-time data.',
+
+                'toc-title': 'Theory of Change (ToC)',
+                'toc-sub': 'How our technological intervention leads to long-term environmental and public health improvements.',
+                'toc-step1': 'Phase 1 / Input', 'toc-1-title': 'Community Empowerment', 'toc-1-desc': 'Deploying the AquaGuard app in target communities, distributing test kits, and training local volunteers.',
+                'toc-step2': 'Phase 2 / Output', 'toc-2-title': 'Data Insights', 'toc-2-desc': 'The AI engine continuously processes images, generating real-time risk maps to make hidden pollution transparent.',
+                'toc-step3': 'Phase 3 / Outcome', 'toc-3-title': 'Policy Response', 'toc-3-desc': 'Environmental agencies prioritize clean water distribution and medical aid for high-risk zones based on data.',
+                'toc-step4': 'Phase 4 / Impact', 'toc-4-title': 'Sustainable Development', 'toc-4-desc': 'Reducing waterborne diseases, upgrading landfill anti-seepage projects, and building resilient water governance.',
+
+                'sdg-title': 'Feasibility & SDG Impact', 'sdg-sub': 'AquaGuard AI is feasible because it bypasses expensive physical sensors by smartly combining mobile apps, Cloud AI, and citizen participation.',
+                'sdg-3': 'Good Health & Well-being', 'sdg-6': 'Clean Water & Sanitation',
+                'fea-1': 'Financial Feasibility', 'fea-1-sub': 'Community participation drastically reduces the cost of traditional lab-based blanket monitoring.',
+                'fea-2': 'Institutional Capacity', 'fea-2-sub': 'Breaking information silos to provide local governments with real-time, structured observation data from the frontlines.',
+
+                'team-title': 'Meet Our Team', 'team-sub': 'Team 清 IT UP is dedicated to driving positive social and environmental change through technology.',
+                'team-order-note': '* In no particular order'
+            },
+            'id': {
+                'nav-team': 'BY TEAM 清 IT UP', 'nav-1': 'Tantangan', 'nav-2': 'Solusi', 'nav-3': 'Tata Kelola', 'nav-4': 'Teori Perubahan', 'nav-5': 'Tim', 'nav-btn': 'Coba Prototipe AI',
+                
+                'hero-tag': 'Dari Teknologi ke Tata Kelola',
+                'hero-title': 'Mengubah observasi komunitas lokal<br>menjadi <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">tindakan publik yang terkoordinasi</span>',
+                'hero-sub': 'Di sekitar TPA Bantargebang, polusi air tanah mengancam banyak keluarga. AquaGuard AI bukan sekadar alat pemantau; ini adalah mekanisme tata kelola air inovatif yang menghubungkan sains warga, AI, dan institusi publik.',
+                'hero-btn1': 'Luncurkan Prototipe AI', 'hero-btn2': 'Pelajari Lebih Lanjut',
+                'mock-scan': 'Pindai Air',
+
+                'chal-title': 'Tantangan Lokal yang Parah',
+                'chal-sub': 'Di sekitar Bantargebang, TPA terbesar di Indonesia, keamanan air menghadapi ancaman yang belum pernah terjadi sebelumnya, dan pemantauan tradisional gagal mencakup semua rumah tangga.',
+                'chal-1-title': 'Polusi Lindi', 'chal-1-desc': 'Air lindi TPA yang tidak diolah dengan baik meresap ke air tanah, menyebabkan air sumur menjadi kuning, berbau, dan tinggi logam berat.',
+                'chal-2-title': 'Ancaman Kesehatan Publik', 'chal-2-desc': 'Kekurangan sumber air alternatif, ribuan keluarga mengkonsumsi air yang terkontaminasi, menghadapi risiko tinggi penyakit usus dan kronis.',
+                'chal-3-title': 'Titik Buta Pemantauan', 'chal-3-desc': 'Tes laboratorium resmi yang mahal dan lambat mencegah pemerintah mendapatkan data distribusi polusi real-time.',
+
+                'sol-title': 'Sains Warga + Pemberdayaan AI',
+                'sol-sub': 'AquaGuard AI mengubah ponsel cerdas menjadi stasiun pemantauan air mikro terdistribusi. Melalui model visi AI, kami memberdayakan warga untuk menguji kualitas air secara mandiri.',
+                'sol-pt1-title': 'Jepret & Unggah', 'sol-pt1-desc': 'Warga cukup menggunakan ponsel mereka untuk memotret sampel air. Tidak memerlukan pelatihan yang rumit.',
+                'sol-pt2-title': 'Analisis Cloud AI', 'sol-pt2-desc': 'Sistem menggunakan visi komputer untuk menganalisis warna air, memberikan penilaian risiko awal secara instan.',
+
+                'gov-title': 'Jaringan Tata Kelola Kolaboratif',
+                'gov-1': 'Warga Lokal (Sumber Data)', 'gov-1-desc': 'Membangun basis data crowdsourcing melalui unggahan foto harian, meningkatkan kesadaran komunitas.',
+                'gov-2': 'Platform AquaGuard', 'gov-2-desc': 'Mengumpulkan dan menganalisis data gambar dalam jumlah besar untuk menghasilkan peta panas kualitas air regional.',
+                'gov-3': 'Pemerintah (Pembuat Keputusan)', 'gov-3-desc': 'Mengalokasikan sumber daya air bersih dengan tepat dan merumuskan kebijakan remediasi TPA berdasarkan data real-time.',
+
+                'toc-title': 'Teori Perubahan (ToC)',
+                'toc-sub': 'Bagaimana intervensi teknologi kami mengarah pada perbaikan lingkungan dan kesehatan publik jangka panjang.',
+                'toc-step1': 'Fase 1 / Input', 'toc-1-title': 'Pemberdayaan Komunitas', 'toc-1-desc': 'Menyebarkan aplikasi AquaGuard di komunitas target, mendistribusikan alat tes, dan melatih relawan lokal.',
+                'toc-step2': 'Fase 2 / Output', 'toc-2-title': 'Wawasan Data', 'toc-2-desc': 'Mesin AI terus memproses gambar, menghasilkan peta risiko real-time untuk membuat polusi yang tersembunyi menjadi transparan.',
+                'toc-step3': 'Fase 3 / Hasil', 'toc-3-title': 'Respons Kebijakan', 'toc-3-desc': 'Badan lingkungan memprioritaskan distribusi air bersih dan bantuan medis untuk zona berisiko tinggi berdasarkan data.',
+                'toc-step4': 'Fase 4 / Dampak', 'toc-4-title': 'Pembangunan Berkelanjutan', 'toc-4-desc': 'Mengurangi penyakit yang ditularkan melalui air, meningkatkan proyek anti-rembesan TPA, dan membangun tata kelola air yang tangguh.',
+
+                'sdg-title': 'Kelayakan & Dampak SDG', 'sdg-sub': 'Kelayakan AquaGuard AI terletak pada penggabungan aplikasi seluler, Cloud AI, dan partisipasi warga tanpa sensor fisik yang mahal.',
+                'sdg-3': 'Kesehatan yang Baik', 'sdg-6': 'Air Bersih & Sanitasi',
+                'fea-1': 'Kelayakan Finansial', 'fea-1-sub': 'Partisipasi komunitas secara drastis mengurangi biaya pemantauan laboratorium konvensional.',
+                'fea-2': 'Kapasitas Institusional', 'fea-2-sub': 'Mendobrak sekat informasi untuk menyediakan data observasi terstruktur secara real-time dari garda terdepan kepada pemerintah daerah.',
+
+                'team-title': 'Kenali Tim Kami', 'team-sub': 'Tim 清 IT UP berdedikasi untuk mendorong perubahan sosial dan lingkungan yang positif melalui teknologi.',
+                'team-order-note': '* Tanpa urutan tertentu'
+            }
+        };
+
+        function changeSiteLang(lang) {
+            // 设置 html 的 lang 属性，以便浏览器适配正确的字体和排版规则
+            document.getElementById('html-root').setAttribute('lang', lang);
+
+            // 更新语言切换按钮样式
+            ['id', 'en', 'zh'].forEach(l => {
+                document.getElementById(`btn-site-${l}`).className = l === lang ? "px-3 py-1.5 rounded bg-blue-600 text-white transition shadow-sm" : "px-3 py-1.5 rounded text-slate-600 hover:bg-white transition";
+            });
+
+            // 批量替换文案
+            for (let key in siteDict[lang]) {
+                const element = document.getElementById(key);
+                if(element) {
+                    element.innerHTML = siteDict[lang][key];
+                }
+            }
+        }
+        
+        // 默认语言设置
+        changeSiteLang('zh');
+    </script>
+</body>
+</html>

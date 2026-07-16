@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AquaGuard AI - Real LLM Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background-color: #e2e8f0; }
+        .app-container {
+            width: 100%; max-width: 440px; height: 100vh; max-height: 920px;
+            background-color: #f8fafc; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow-y: auto; overflow-x: hidden; position: relative; margin: 0 auto;
+            display: flex; flex-direction: column;
+        }
+        @media (min-width: 640px) {
+            .app-container { border-radius: 32px; border: 8px solid #1e293b; height: 90vh; margin: 20px auto; }
+        }
+        .app-container::-webkit-scrollbar { width: 6px; }
+        .app-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .option-card input:checked + div { border-color: #2563eb; background-color: #eff6ff; box-shadow: inset 0 0 0 1px #2563eb; }
+        .visual-card input:checked + div { border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; transform: scale(0.98); }
+
+        .scan-line {
+            position: absolute; width: 100%; height: 3px; background: rgba(59, 130, 246, 0.8);
+            box-shadow: 0 0 8px #3b82f6; top: 0; animation: scan 1.5s linear infinite; z-index: 30; display: none;
+        }
+        @keyframes scan { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+        #map-container { height: 50vh; width: 100%; border-radius: 0.5rem; }
+        .section-header { position: relative; padding-left: 12px; }
+        .section-header::before { content: ''; position: absolute; left: 0; top: 10%; height: 80%; width: 4px; background-color: #2563eb; border-radius: 2px; }
+    </style>
+</head>
+<body class="antialiased text-slate-800 flex items-center justify-center min-h-screen">
+
+    <div class="app-container">
+        <header class="bg-white border-b border-slate-200 p-4 sticky top-0 z-40 shadow-sm rounded-t-[24px] flex-shrink-0">
+            <div class="flex justify-between items-center mb-1">
+                <div class="font-bold text-lg tracking-tight flex items-center text-slate-800">
+                    <i class="fa-solid fa-shield-halved text-blue-600 mr-2"></i>AquaGuard <span class="font-light ml-1 text-slate-500">AI</span>
+                </div>
+                <div class="flex bg-slate-100 rounded-md p-0.5 space-x-1 text-[11px] font-medium border border-slate-200">
+                    <button onclick="changeLang('id')" id="btn-lang-id" class="px-2 py-1 rounded text-slate-600 hover:bg-white transition">ID</button>
+                    <button onclick="changeLang('en')" id="btn-lang-en" class="px-2 py-1 rounded text-slate-600 hover:bg-white transition">EN</button>
+                    <button onclick="changeLang('zh')" id="btn-lang-zh" class="px-2 py-1 rounded bg-blue-600 text-white transition shadow-sm">中</button>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 tracking-wide" id="ui-subtitle">社区地下水观测与风险研判终端</p>
+        </header>
+
+        <!-- 表单视图 -->
+        <main id="form-view" class="flex-1 flex flex-col fade-in overflow-hidden">
+            <div class="p-4 flex-1 overflow-y-auto pb-4">
+                <div class="bg-blue-50 text-blue-800 text-[11px] p-3 rounded-lg mb-5 flex items-start border border-blue-100">
+                    <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-blue-600"></i>
+                    <span id="ui-intro">系统将汇聚您的观测数据，交由云端 AI 进行实时风险推理。数据的完整性将直接影响评估的置信度。</span>
+                </div>
+
+                <form id="water-report-form" class="space-y-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-800 mb-4 section-header" id="ui-sec1">1. 评估背景: 空间与水文气象</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-700 mb-2" id="ui-map-label">水井/采样点坐标 <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="openMapModal()" class="w-full bg-slate-50 hover:bg-blue-50 text-slate-700 border border-slate-300 py-2.5 px-4 rounded-lg text-xs font-medium transition flex justify-between items-center">
+                                <span class="flex items-center"><i class="fa-solid fa-location-crosshairs text-blue-500 mr-2"></i> <span id="ui-map-btn">打开地图进行空间标记</span></span>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+                            <input type="hidden" id="latitude" value="-6.3153">
+                            <input type="hidden" id="longitude" value="106.9854">
+                            <p id="loc-display" class="text-[10px] text-emerald-600 mt-1.5 font-mono hidden"><i class="fa-solid fa-check mr-1"></i> <span id="coords-text"></span></p>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-700 mb-2" id="ui-src-label">水源类型评估</label>
+                            <select id="source_type" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs bg-white outline-none">
+                                <option value="opt-src-1" id="opt-src-1">深水井 (>20米) / 封闭式管网</option>
+                                <option value="opt-src-2" id="opt-src-2">浅层水井 (<10米)</option>
+                                <option value="opt-src-3" id="opt-src-3">露天水坑 / 地表水</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block text-xs font-semibold text-slate-700 mb-2" id="ui-weather-label">近期气象</label>
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <label class="option-card cursor-pointer">
+                                    <input type="radio" name="weather" value="opt-w-1" class="hidden" checked>
+                                    <div class="p-2 border border-slate-200 rounded-lg flex flex-col items-center text-center transition">
+                                        <i class="fa-solid fa-sun text-amber-500 text-sm mb-1"></i>
+                                        <span class="text-[10px] font-medium" id="ui-w1">干旱</span>
+                                    </div>
+                                </label>
+                                <label class="option-card cursor-pointer">
+                                    <input type="radio" name="weather" value="opt-w-2" class="hidden">
+                                    <div class="p-2 border border-slate-200 rounded-lg flex flex-col items-center text-center transition">
+                                        <i class="fa-solid fa-cloud-showers-heavy text-blue-500 text-sm mb-1"></i>
+                                        <span class="text-[10px] font-medium" id="ui-w2">暴雨</span>
+                                    </div>
+                                </label>
+                                <label class="option-card cursor-pointer">
+                                    <input type="radio" name="weather" value="opt-w-3" class="hidden">
+                                    <div class="p-2 border border-slate-200 rounded-lg flex flex-col items-center text-center transition">
+                                        <i class="fa-solid fa-water text-cyan-600 text-sm mb-1"></i>
+                                        <span class="text-[10px] font-medium" id="ui-w3">洪水</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-800 mb-4 section-header" id="ui-sec2">2. 视觉特征</h3>
+
+                        <div class="mb-5">
+                            <div class="flex justify-between items-end mb-2">
+                                <label class="block text-xs font-semibold text-slate-700" id="ui-upload-label">水样图像分析 (AI RGB)</label>
+                                <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded" id="ui-boost">提升置信度</span>
+                            </div>
+                            <label for="photo-upload" class="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 h-32 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden transition hover:border-blue-400">
+                                <input type="file" id="photo-upload" accept="image/*" class="hidden">
+                                <div id="upload-placeholder" class="text-center text-slate-500">
+                                    <i class="fa-solid fa-camera text-xl mb-1 text-slate-400"></i>
+                                    <p class="text-[10px] font-medium" id="ui-upload-hint">点击上传水样照片</p>
+                                </div>
+                                <img id="image-preview" class="hidden absolute inset-0 w-full h-full object-cover z-10" alt="Preview" />
+                                <div id="scan-fx" class="scan-line"></div>
+                            </label>
+                            <canvas id="hidden-canvas" class="hidden"></canvas>
+                            <div id="extracted-color-box" class="hidden mt-2 p-2 bg-slate-100 rounded border border-slate-200 flex items-center justify-between text-xs transition-opacity duration-500">
+                                <div class="flex items-center text-slate-700 text-[10px]">
+                                    <i class="fa-solid fa-microchip text-blue-600 mr-1.5"></i>
+                                    <span id="ui-extracted">提取出的RGB:</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span id="rgb-value" class="font-mono text-[10px] text-slate-500 mr-2">RGB(---)</span>
+                                    <div id="color-swatch" class="w-4 h-4 rounded border border-slate-300 shadow-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs font-semibold text-slate-700 mb-2" id="ui-color-label">主导水色选择</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="visual-card cursor-pointer">
+                                    <input type="radio" name="water_color" value="opt-c-1" class="hidden" checked>
+                                    <div class="p-2 border border-slate-200 rounded-lg flex items-center space-x-2 transition bg-white">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-blue-50 border border-blue-200"></div>
+                                        <span class="text-[10px] font-medium" id="ui-c1">清澈</span>
+                                    </div>
+                                </label>
+                                <label class="visual-card cursor-pointer">
+                                    <input type="radio" name="water_color" value="opt-c-2" class="hidden">
+                                    <div class="p-2 border border-slate-200 rounded-lg flex items-center space-x-2 transition bg-white">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-yellow-200 border border-yellow-300"></div>
+                                        <span class="text-[10px] font-medium" id="ui-c2">发黄/铁锈</span>
+                                    </div>
+                                </label>
+                                <label class="visual-card cursor-pointer">
+                                    <input type="radio" name="water_color" value="opt-c-3" class="hidden">
+                                    <div class="p-2 border border-slate-200 rounded-lg flex items-center space-x-2 transition bg-white">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-300 opacity-80"></div>
+                                        <span class="text-[10px] font-medium" id="ui-c3">乳白浑浊</span>
+                                    </div>
+                                </label>
+                                <label class="visual-card cursor-pointer">
+                                    <input type="radio" name="water_color" value="opt-c-4" class="hidden">
+                                    <div class="p-2 border border-slate-200 rounded-lg flex items-center space-x-2 transition bg-slate-50">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-gray-900 border border-gray-600"></div>
+                                        <span class="text-[10px] font-bold text-red-600" id="ui-c4">墨黑/褐色</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-sm font-bold text-slate-800 mb-4 section-header" id="ui-sec3">3. 感官与细节记录</h3>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1" id="ui-turb-label">水体浊度</label>
+                            <select id="turbidity" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs bg-white outline-none">
+                                <option value="opt-t-1" id="opt-t-1">清澈透光</option>
+                                <option value="opt-t-2" id="opt-t-2">轻微悬浮物</option>
+                                <option value="opt-t-3" id="opt-t-3">高度浑浊不透光</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1" id="ui-odor-label">气味特征</label>
+                            <select id="odor" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs bg-white outline-none">
+                                <option value="opt-o-1" id="opt-o-1">无异味</option>
+                                <option value="opt-o-2" id="opt-o-2">泥土或苔藓味</option>
+                                <option value="opt-o-3" id="opt-o-3">金属腥味</option>
+                                <option value="opt-o-4" id="opt-o-4">臭鸡蛋味(硫化氢)</option>
+                                <option value="opt-o-5" id="opt-o-5">刺鼻化学溶剂味</option>
+                            </select>
+                        </div>
+
+                        <div class="mt-5 border-t border-slate-100 pt-4">
+                            <label class="block text-xs font-semibold text-slate-700 mb-1 flex justify-between items-center">
+                                <span id="ui-nlp-label">自然语言描述与症状记录</span>
+                                <span class="text-[9px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">NLP 分析</span>
+                            </label>
+                            <div class="bg-blue-50/50 p-2.5 rounded-lg mb-2 text-[10px] text-slate-600 border border-blue-100 leading-relaxed" id="ui-nlp-hint">
+                                请详细描述：距离垃圾场多远？饮用或洗澡后是否有人出现腹泻、发烧或皮肤发痒？
+                            </div>
+                            <textarea id="custom_text" rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs bg-white outline-none focus:border-blue-500" placeholder="例如：水井离垃圾堆只有50米，孩子昨天洗澡后起皮疹..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 p-4 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-b-[24px]">
+                <button type="button" onclick="runRealAIAnalysis()" class="w-full bg-blue-600 text-white font-semibold text-sm py-3.5 rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition flex justify-center items-center">
+                    <i class="fa-solid fa-sparkles mr-2"></i> <span id="ui-submit">调用云端大模型生成评估</span>
+                </button>
+            </div>
+        </main>
+
+        <!-- 加载视图 -->
+        <main id="loading-view" class="flex-1 p-6 hidden flex-col items-center justify-center fade-in bg-slate-900 text-slate-300 relative overflow-hidden rounded-b-[24px]">
+            <div class="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+            <div class="relative w-20 h-20 mb-8 z-10 flex items-center justify-center">
+                <svg class="animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <div class="w-full max-w-sm space-y-2.5 z-10 font-mono text-[10px] tracking-wide" id="ai-loading-text">
+                <div class="text-blue-400">> Transmitting environment parameters...</div>
+                <div class="text-emerald-400 mt-2">> Prompting DeepSeek/LLM API Engine...</div>
+                <div class="text-slate-400 mt-2 animate-pulse">> Waiting for real-time AI inference...</div>
+            </div>
+        </main>
+
+        <!-- 结果视图 -->
+        <main id="result-view" class="flex-1 p-4 hidden pb-10 fade-in bg-slate-100 overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xs font-bold text-slate-700 tracking-wider flex items-center">
+                    <i class="fa-solid fa-file-contract text-blue-500 mr-2"></i> <span id="ui-res-title">大模型定点评估报告</span>
+                </h2>
+                <button onclick="resetApp()" class="text-[10px] font-medium bg-white border border-slate-300 px-2.5 py-1.5 rounded shadow-sm hover:bg-slate-50 text-slate-600 transition">
+                    <i class="fa-solid fa-rotate-left mr-1"></i> <span id="ui-res-reset">重新分析</span>
+                </button>
+            </div>
+
+            <div id="risk-card" class="rounded-xl p-5 mb-5 shadow-sm border bg-white relative overflow-hidden">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest" id="ui-res-index">AI 判定污染指数</span>
+                    <span id="risk-badge" class="text-[10px] font-bold px-2 py-0.5 rounded uppercase"></span>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <h3 id="risk-level" class="text-4xl font-bold tracking-tight text-slate-800">0</h3>
+                    <span class="text-xs font-medium text-slate-400">/ 100</span>
+                </div>
+                <div class="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden">
+                    <div id="risk-bar" class="h-full bg-slate-300 transition-all duration-1000 w-0"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-5">
+                <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3 pb-2 border-b border-slate-100">
+                    <span id="ui-res-xai">LLM 归因逻辑与病理分析 (XAI)</span>
+                </h4>
+                <ul id="xai-list" class="space-y-3 text-[11px] text-slate-700 leading-relaxed list-disc pl-4"></ul>
+            </div>
+
+            <div class="mb-5">
+                <h4 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200 px-1">
+                    <span id="ui-res-act">大模型动态治理矩阵</span>
+                </h4>
+                <div class="grid grid-cols-1 gap-2.5">
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg flex shadow-sm">
+                        <div class="w-8 flex-shrink-0 text-blue-500 pt-0.5"><i class="fa-solid fa-glass-water text-lg"></i></div>
+                        <div>
+                            <h5 class="text-[10px] font-bold text-slate-800 uppercase mb-0.5" id="ui-act1">饮用控制建议</h5>
+                            <p id="act-drink" class="text-[11px] text-slate-600 leading-snug"></p>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-lg flex shadow-sm">
+                        <div class="w-8 flex-shrink-0 text-emerald-500 pt-0.5"><i class="fa-solid fa-hands-bubbles text-lg"></i></div>
+                        <div>
+                            <h5 class="text-[10px] font-bold text-slate-800 uppercase mb-0.5" id="ui-act2">暴露与洗漱风险</h5>
+                            <p id="act-wash" class="text-[11px] text-slate-600 leading-snug"></p>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg flex shadow-sm">
+                        <div class="w-8 flex-shrink-0 text-indigo-600 pt-0.5"><i class="fa-solid fa-landmark text-lg"></i></div>
+                        <div>
+                            <h5 class="text-[10px] font-bold text-indigo-800 uppercase mb-0.5" id="ui-act3">政策与上报建议</h5>
+                            <p id="act-gov" class="text-[11px] text-indigo-700 leading-snug font-medium"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="debug-box" class="hidden mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-[10px] rounded-lg font-mono break-words">
+                [API连接失败] <span id="debug-text"></span>
+            </div>
+        </main>
+    </div>
+
+    <!-- Map Modal -->
+    <div id="map-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 opacity-0 transition-opacity duration-300" style="z-index: 1000;">
+        <div class="bg-white w-full max-w-md rounded-xl overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300" id="map-modal-content">
+            <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center">
+                <h3 class="text-sm font-bold text-slate-800">Geospatial Tagging</h3>
+                <button onclick="closeMapModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="map-container"></div>
+            <div class="p-3 bg-white border-t border-slate-200">
+                <button onclick="confirmLocation()" class="w-full bg-blue-600 text-white font-medium py-2.5 rounded-lg text-xs" id="ui-map-confirm">Confirm Coordinates</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 核心翻译字典：涵盖所有的界面标签和选项文案
+        const uiDict = {
+            'zh': {
+                'ui-subtitle': '社区地下水观测与风险研判终端', 'ui-intro': '系统将汇聚您的观测数据，交由云端 AI 进行实时风险推理。',
+                'ui-sec1': '1. 评估背景: 空间与水文气象', 'ui-map-label': '水井/采样点坐标', 'ui-map-btn': '打开地图进行空间标记', 'ui-map-confirm': '确认坐标',
+                'ui-src-label': '水源类型评估', 'ui-weather-label': '近期气象', 'ui-w1': '干旱', 'ui-w2': '暴雨', 'ui-w3': '洪水',
+                'ui-sec2': '2. 视觉特征', 'ui-upload-label': '水样图像分析 (AI RGB)', 'ui-boost': '提升置信度', 'ui-upload-hint': '点击上传水样照片',
+                'ui-extracted': '提取出的RGB:', 'ui-color-label': '主导水色选择', 'ui-c1': '清澈', 'ui-c2': '发黄/铁锈', 'ui-c3': '乳白浑浊', 'ui-c4': '墨黑/褐色',
+                'ui-sec3': '3. 感官与细节记录', 'ui-turb-label': '水体浊度', 'ui-odor-label': '气味特征', 'ui-nlp-label': '自然语言描述与症状记录',
+                'ui-nlp-hint': '请详细描述：距离垃圾场多远？是否有人出现腹泻或皮肤发痒？', 'ui-nlp-placeholder': '例如：水井离垃圾堆只有50米，孩子昨天洗澡后起皮疹...',
+                'ui-submit': '调用云端大模型生成评估',
+                'ui-res-title': '大模型定点评估报告', 'ui-res-reset': '重新分析', 'ui-res-index': 'AI 判定污染指数', 'ui-res-xai': 'LLM 归因逻辑与病理分析 (XAI)',
+                'ui-res-act': '大模型动态治理矩阵', 'ui-act1': '饮用控制建议', 'ui-act2': '暴露与洗漱风险', 'ui-act3': '政策与上报建议',
+                
+                // Select Options
+                'opt-src-1': '深水井 (>20米) / 封闭式管网', 'opt-src-2': '浅层水井 (<10米)', 'opt-src-3': '露天水坑 / 地表水',
+                'opt-t-1': '清澈透光', 'opt-t-2': '轻微悬浮物', 'opt-t-3': '高度浑浊不透光',
+                'opt-o-1': '无异味', 'opt-o-2': '泥土或苔藓味', 'opt-o-3': '金属腥味', 'opt-o-4': '臭鸡蛋味(硫化氢)', 'opt-o-5': '刺鼻化学溶剂味'
+            },
+            'en': {
+                'ui-subtitle': 'Community Groundwater Terminal', 'ui-intro': 'Data will be sent to the AI Large Language Model for real-time inference.',
+                'ui-sec1': '1. Geospatial & Hydro-meteorological', 'ui-map-label': 'Sampling Coordinates', 'ui-map-btn': 'Open Map to Tag Location', 'ui-map-confirm': 'Confirm',
+                'ui-src-label': 'Water Source Type', 'ui-weather-label': 'Recent Weather', 'ui-w1': 'Dry', 'ui-w2': 'Rain', 'ui-w3': 'Flood',
+                'ui-sec2': '2. Visual Data', 'ui-upload-label': 'Forensic Image (RGB)', 'ui-boost': 'Boost Accuracy', 'ui-upload-hint': 'Tap to Upload',
+                'ui-extracted': 'Extracted RGB:', 'ui-color-label': 'Dominant Color', 'ui-c1': 'Clear', 'ui-c2': 'Yellowish', 'ui-c3': 'Milky', 'ui-c4': 'Black/Brown',
+                'ui-sec3': '3. Sensory & Details', 'ui-turb-label': 'Turbidity', 'ui-odor-label': 'Odor Profile', 'ui-nlp-label': 'NLP Symptom Description',
+                'ui-nlp-hint': 'Describe details: Distance to landfill? Any reported diarrhea or skin rashes?', 'ui-nlp-placeholder': 'e.g. Well is 50m from landfill, kids got rashes...',
+                'ui-submit': 'Prompt Cloud LLM for Analysis',
+                'ui-res-title': 'LLM Assessment Report', 'ui-res-reset': 'New Scan', 'ui-res-index': 'AI Risk Score', 'ui-res-xai': 'LLM Diagnostic Logic (XAI)',
+                'ui-res-act': 'Dynamic Governance Matrix', 'ui-act1': 'Ingestion Advice', 'ui-act2': 'Dermal Exposure Risk', 'ui-act3': 'Policy & Gov Intervention',
+                
+                // Select Options
+                'opt-src-1': 'Deep Well (>20m) / Piped', 'opt-src-2': 'Shallow Well (<10m)', 'opt-src-3': 'Surface Water / Pit',
+                'opt-t-1': 'Clear / Transparent', 'opt-t-2': 'Slightly Suspended Particles', 'opt-t-3': 'Highly Turbid / Opaque',
+                'opt-o-1': 'No Odor', 'opt-o-2': 'Earthy / Mossy', 'opt-o-3': 'Metallic', 'opt-o-4': 'Rotten Egg (H2S)', 'opt-o-5': 'Pungent Chemical'
+            },
+            'id': {
+                'ui-subtitle': 'Terminal Pemantauan Air Tanah', 'ui-intro': 'Data Anda akan dianalisis secara real-time oleh AI (LLM).',
+                'ui-sec1': '1. Geospasial & Cuaca', 'ui-map-label': 'Koordinat Peta', 'ui-map-btn': 'Buka Peta untuk Menandai', 'ui-map-confirm': 'Konfirmasi',
+                'ui-src-label': 'Tipe Sumber Air', 'ui-weather-label': 'Cuaca Terkini', 'ui-w1': 'Kemarau', 'ui-w2': 'Hujan', 'ui-w3': 'Banjir',
+                'ui-sec2': '2. Karakteristik Visual', 'ui-upload-label': 'Foto Sampel (Ekstraksi RGB)', 'ui-boost': 'Akurasi Ekstra', 'ui-upload-hint': 'Ketuk untuk Unggah',
+                'ui-extracted': 'RGB Diekstraksi:', 'ui-color-label': 'Warna Dominan', 'ui-c1': 'Jernih', 'ui-c2': 'Kuning', 'ui-c3': 'Putih Susu', 'ui-c4': 'Hitam Pekat',
+                'ui-sec3': '3. Observasi & Gejala', 'ui-turb-label': 'Kekeruhan', 'ui-odor-label': 'Profil Bau', 'ui-nlp-label': 'Deskripsi Gejala Warga',
+                'ui-nlp-hint': 'Berapa jarak ke TPA? Adakah kasus diare atau gatal-gatal di keluarga?', 'ui-nlp-placeholder': 'Misal: Sumur berjarak 50m dari TPA, anak gatal-gatal...',
+                'ui-submit': 'Jalankan Inferensi LLM Cloud',
+                'ui-res-title': 'Laporan Analisis LLM', 'ui-res-reset': 'Analisis Ulang', 'ui-res-index': 'Skor Risiko AI', 'ui-res-xai': 'Logika Diagnosis LLM (XAI)',
+                'ui-res-act': 'Matriks Tata Kelola Dinamis', 'ui-act1': 'Saran Konsumsi', 'ui-act2': 'Risiko Paparan Kulit', 'ui-act3': 'Saran Kebijakan Pemerintah',
+                
+                // Select Options
+                'opt-src-1': 'Sumur Dalam (>20m) / Pipa', 'opt-src-2': 'Sumur Dangkal (<10m)', 'opt-src-3': 'Air Permukaan / Lubang',
+                'opt-t-1': 'Jernih / Transparan', 'opt-t-2': 'Sedikit Partikel Tersuspensi', 'opt-t-3': 'Sangat Keruh / Gelap',
+                'opt-o-1': 'Tidak Berbau', 'opt-o-2': 'Tanah / Lumut', 'opt-o-3': 'Metalik / Logam', 'opt-o-4': 'Telur Busuk (H2S)', 'opt-o-5': 'Kimia Menyengat'
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function changeLang(lang) {
+            currentLang = lang;
+            ['id', 'en', 'zh'].forEach(l => {
+                document.getElementById(`btn-lang-${l}`).className = l === lang ? "px-2 py-1 rounded bg-blue-600 text-white transition shadow-sm" : "px-2 py-1 rounded text-slate-600 hover:bg-white transition";
+            });
+            
+            // 全局文本替换，区分特定标签类型
+            for (let key in uiDict[lang]) {
+                const el = document.getElementById(key);
+                if(el) {
+                    if (key === 'ui-nlp-placeholder') {
+                        document.getElementById('custom_text').placeholder = uiDict[lang][key];
+                    } else if (el.tagName === 'OPTION') {
+                        el.text = uiDict[lang][key];
+                    } else {
+                        el.innerText = uiDict[lang][key];
+                    }
+                }
+            }
+        }
+        
+        // 默认初始化
+        changeLang('zh');
+
+        // ==== 图片处理与 RGB 特征提取 ====
+        document.getElementById('photo-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgElement = document.getElementById('image-preview');
+                imgElement.src = event.target.result;
+                imgElement.classList.remove('hidden');
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                
+                // 启动扫描特效
+                document.getElementById('scan-fx').style.display = 'block';
+                
+                // 模拟处理时间后提取颜色
+                setTimeout(() => {
+                    extractDominantColor(imgElement);
+                    document.getElementById('scan-fx').style.display = 'none';
+                }, 1500);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function extractDominantColor(img) {
+            const canvas = document.getElementById('hidden-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.naturalWidth || img.width || 100;
+            canvas.height = img.naturalHeight || img.height || 100;
+            ctx.drawImage(img, 0, 0);
+            
+            // 简单取中点像素来代表 RGB
+            const centerX = Math.floor(canvas.width / 2);
+            const centerY = Math.floor(canvas.height / 2);
+            let r=200, g=200, b=200;
+            try {
+                const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
+                r = pixel[0]; g = pixel[1]; b = pixel[2];
+            } catch(e) { console.warn("Canvas CORS restriction on color pick"); }
+            
+            document.getElementById('rgb-value').innerText = `RGB(${r}, ${g}, ${b})`;
+            document.getElementById('color-swatch').style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            document.getElementById('extracted-color-box').classList.remove('hidden');
+        }
+
+        // ==== 地图逻辑 ====
+        let map, marker;
+        function openMapModal() {
+            document.getElementById('map-modal').classList.remove('hidden');
+            document.getElementById('map-modal').classList.add('flex');
+            setTimeout(() => { document.getElementById('map-modal').classList.remove('opacity-0'); document.getElementById('map-modal-content').classList.remove('scale-95'); }, 10);
+            if (!map) {
+                map = L.map('map-container').setView([-6.3153, 106.9854], 14);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+                marker = L.marker([-6.3153, 106.9854], {draggable: true}).addTo(map);
+                map.on('click', e => marker.setLatLng(e.latlng));
+            }
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+        function closeMapModal() {
+            document.getElementById('map-modal').classList.add('opacity-0');
+            document.getElementById('map-modal-content').classList.add('scale-95');
+            setTimeout(() => { document.getElementById('map-modal').classList.remove('flex'); document.getElementById('map-modal').classList.add('hidden'); }, 300);
+        }
+        function confirmLocation() {
+            const pos = marker.getLatLng();
+            document.getElementById('latitude').value = pos.lat.toFixed(5);
+            document.getElementById('longitude').value = pos.lng.toFixed(5);
+            document.getElementById('coords-text').innerText = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+            document.getElementById('loc-display').classList.remove('hidden');
+            closeMapModal();
+        }
+
+        // ==== AI 大模型通信与分析 ====
+        async function runRealAIAnalysis() {
+            // UI 切换
+            document.getElementById('form-view').classList.add('hidden');
+            document.getElementById('loading-view').classList.remove('hidden');
+            document.getElementById('loading-view').classList.add('flex');
+            document.getElementById('debug-box').classList.add('hidden');
+
+            // 精准收集用户所选数据（转换回当前语言的字面意思，让大模型能看懂）
+            const sourceText = uiDict[currentLang][document.getElementById('source_type').value];
+            const weatherText = uiDict[currentLang][document.querySelector('input[name="weather"]:checked').value];
+            const colorText = uiDict[currentLang][document.querySelector('input[name="water_color"]:checked').value];
+            const turbText = uiDict[currentLang][document.getElementById('turbidity').value];
+            const odorText = uiDict[currentLang][document.getElementById('odor').value];
+            const nlpNotes = document.getElementById('custom_text').value || '无 / None';
+            const extractedRGB = document.getElementById('rgb-value').innerText;
+            const langName = currentLang === 'zh' ? 'Chinese' : (currentLang === 'id' ? 'Indonesian' : 'English');
+
+            // 深度优化的系统提示词 (System Prompt)
+            const promptText = `You are AquaGuard AI, an expert environmental health and water quality analyzer.
+Evaluate this community water observation report:
+- Source Type: ${sourceText}
+- Recent Weather: ${weatherText}
+- Visual Dominant Color: ${colorText}
+- AI Extracted Image RGB: ${extractedRGB}
+- Turbidity: ${turbText}
+- Odor Profile: ${odorText}
+- User Notes/Symptoms: ${nlpNotes}
+
+Based on these parameters, assess the pollution risk (0-100, where 100 is highly toxic/dangerous).
+Output MUST be strictly in valid JSON format ONLY. Do not use markdown wrappers if not needed.
+All text values in your JSON response MUST be written fluently in ${langName}.
+
+JSON Schema:
+{
+  "score": number,
+  "level": string (Short risk level label, e.g., "High Risk", "Moderate"),
+  "xai_bullets": [string, string, string] (3 scientific/pathological reasons justifying the score),
+  "action_drink": string (Actionable advice on ingestion),
+  "action_wash": string (Actionable advice on dermal contact),
+  "action_gov": string (Recommendation for government intervention)
+}`;
+
+            try {
+                // 已按照 Canvas 中的指南，切换为 Netlify 云函数后端 (DeepSeek API)
+                const response = await fetch('/.netlify/functions/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText })
+                });
+
+                if (!response.ok) throw new Error('API Request Failed');
+                
+                const data = await response.json();
+                let jsonText = data.reply;
+                
+                // 去除可能携带的 Markdown 代码块残留
+                jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const aiData = JSON.parse(jsonText);
+                
+                renderAIReport(aiData);
+                
+            } catch (error) {
+                console.warn("LLM API Call Failed, using intelligent fallback data:", error);
+                
+                // 容灾模式：当 API 失败时，根据用户语言给出降级预案
+                const isZh = currentLang === 'zh';
+                const isId = currentLang === 'id';
+                const fallbackData = {
+                    score: 75,
+                    level: isZh ? '高风险' : (isId ? 'Risiko Tinggi' : 'High Risk'),
+                    xai_bullets: isZh ? 
+                        ['安全网络异常: 使用降级模型评估', '气味或颜色暗示潜在化学/重金属渗漏', '结合气象条件，浅层水源污染率上升'] : 
+                        (isId ? ['Jaringan gagal: Mode fallback', 'Bau/warna menunjukkan potensi kontaminasi berat', 'Cuaca memicu risiko paparan'] : 
+                        ['Network Error: Fallback active', 'Color/Odor indicates contamination', 'Weather increases exposure risk']),
+                    action_drink: isZh ? '绝对禁止直接饮用' : (isId ? 'Dilarang Keras Diminum' : 'Do Not Drink'),
+                    action_wash: isZh ? '避免接触伤口及眼部' : (isId ? 'Hindari Kontak Luka' : 'Avoid open wound contact'),
+                    action_gov: isZh ? '建议政府派遣水车补给' : (isId ? 'Kirim Truk Air Bersih' : 'Dispatch Water Trucks')
+                };
+                
+                document.getElementById('debug-box').classList.remove('hidden');
+                document.getElementById('debug-text').innerText = "Network/Key Error. Loading fallback.";
+                renderAIReport(fallbackData);
+            }
+        }
+
+        // ==== 渲染 AI 结构化报告 ====
+        function renderAIReport(aiData) {
+            document.getElementById('loading-view').classList.remove('flex');
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('result-view').classList.remove('hidden');
+            
+            const score = parseInt(aiData.score) || 0;
+            const scoreEl = document.getElementById('risk-level');
+            const barEl = document.getElementById('risk-bar');
+            const badgeEl = document.getElementById('risk-badge');
+            const xaiList = document.getElementById('xai-list');
+            
+            // 动态颜色规则
+            let colorClass = 'bg-emerald-500';
+            let textClass = 'text-emerald-600';
+            let bgBadge = 'bg-emerald-100';
+            if (score > 35) { colorClass = 'bg-yellow-500'; textClass = 'text-yellow-600'; bgBadge = 'bg-yellow-100'; }
+            if (score > 70) { colorClass = 'bg-red-500'; textClass = 'text-red-600'; bgBadge = 'bg-red-100'; }
+            
+            // 数字跳动动画
+            let count = 0;
+            const interval = setInterval(() => {
+                scoreEl.innerText = count;
+                if (count >= score) {
+                    scoreEl.innerText = score;
+                    clearInterval(interval);
+                }
+                count += Math.ceil(score / 20) || 1;
+            }, 30);
+            
+            // 进度条展开
+            setTimeout(() => {
+                barEl.style.width = score + '%';
+                barEl.className = `h-full transition-all duration-1000 ${colorClass}`;
+            }, 100);
+            
+            // 徽章设定
+            badgeEl.innerText = aiData.level;
+            badgeEl.className = `text-[10px] font-bold px-2 py-0.5 rounded uppercase ${textClass} ${bgBadge}`;
+            
+            // XAI 病理原因写入
+            xaiList.innerHTML = '';
+            if (Array.isArray(aiData.xai_bullets)) {
+                aiData.xai_bullets.forEach(bullet => {
+                    const li = document.createElement('li');
+                    li.innerText = bullet;
+                    xaiList.appendChild(li);
+                });
+            }
+            
+            // 行动矩阵写入
+            document.getElementById('act-drink').innerText = aiData.action_drink || '-';
+            document.getElementById('act-wash').innerText = aiData.action_wash || '-';
+            document.getElementById('act-gov').innerText = aiData.action_gov || '-';
+        }
+
+        function resetApp() { location.reload(); }
+    </script>
+</body>
+</html>
