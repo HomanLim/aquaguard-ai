@@ -543,22 +543,24 @@ JSON Schema:
                 renderAIReport(aiData);
                 
             } catch (error) {
-                console.warn("LLM API Call Failed, using intelligent fallback data:", error);
-                
-                // 容灾模式：当 API 失败时，根据用户语言给出降级预案
-                const isZh = currentLang === 'zh';
-                const isId = currentLang === 'id';
-                const fallbackData = {
-                    score: 75,
-                    level: isZh ? '高风险' : (isId ? 'Risiko Tinggi' : 'High Risk'),
-                    xai_bullets: isZh ? 
-                        ['安全网络异常: 使用降级模型评估', '气味或颜色暗示潜在化学/重金属渗漏', '结合气象条件，浅层水源污染率上升'] : 
-                        (isId ? ['Jaringan gagal: Mode fallback', 'Bau/warna menunjukkan potensi kontaminasi berat', 'Cuaca memicu risiko paparan'] : 
-                        ['Network Error: Fallback active', 'Color/Odor indicates contamination', 'Weather increases exposure risk']),
-                    action_drink: isZh ? '绝对禁止直接饮用' : (isId ? 'Dilarang Keras Diminum' : 'Do Not Drink'),
-                    action_wash: isZh ? '避免接触伤口及眼部' : (isId ? 'Hindari Kontak Luka' : 'Avoid open wound contact'),
-                    action_gov: isZh ? '建议政府派遣水车补给' : (isId ? 'Kirim Truk Air Bersih' : 'Dispatch Water Trucks')
-                };
+
+    console.error("===== AI ERROR =====");
+    console.error(error);
+
+    document.getElementById('loading-view').classList.remove('hidden');
+    document.getElementById('loading-view').classList.remove('flex');
+
+    alert(
+        "AI analysis failed.\n\n" +
+        error.message +
+        "\n\nPlease check F12 → Console."
+    );
+
+    document.getElementById('debug-box').classList.remove('hidden');
+    document.getElementById('debug-text').innerText =
+        error.message;
+
+}
                 
                 document.getElementById('debug-box').classList.remove('hidden');
                 document.getElementById('debug-text').innerText = "Network/Key Error. Loading fallback.";
